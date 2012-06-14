@@ -1,0 +1,219 @@
+
+fum is a tool for managing Amazon Web Services Elastic beanstalk lifecycle stages.  fum assists with the following:
+
+* Managing DNS changes associated with deployments
+* Application version management and deployment
+* Maintaing multiple lifecycle stages (test/staging/production) of an application.
+
+== Getting started
+
+fum is a Ruby DSL (Domain Specific Language) similar to rake, chef, and other tools.  You declare application lifecycle
+stages using the fum language, and then use the fum command to manage those stages.
+
+Installing fum is simple:
+
+  sudo gem install fum
+
+Create a file named +hello.fum+ with the following:
+
+  application_name 'HelloWorld'
+
+  stage :hello do
+    solution_stack "32bit Amazon Linux running Tomcat 7"
+  end
+
+Tell fum about your credentials by creating a file named +.fum+ in your home directory with your AWS credentials (Note,
+we recommend running these examples in a development account until you are comfortable using fum):
+
+  :aws_access_key: <YOUR_ACCESS_KEY>
+  :aws_secret_key: <YOUR_SECRET_KEY>
+
+Now, let's go ahead and launch it:
+
+  fum hello.fum launch --create hello
+
+This command tells fum to launch a new environment using the "hello" stage definition you have provided in +hello.fum+.
+By default fum will not create new applications or versions, but if you specify the +--create+ flag, then fum will
+create the application and a sample version for you if none exists.  In this example, fum will create an application
+named "HelloWorld".  It will also create an environment named "hello" corresponding to the stage you specified.
+
+== Adding DNS support.
+
+The previous examle was simple, and possibly a time saver, but is not particularly interesting.  If you are developing
+an app on elastic beanstalk, you most likely don't want your end users to access your app using
+"example.elasticbeantalk.com" as the URL.  Instead, you most likely want them to access your app using your own
+hostname such as "www.example.com" or even "example.com" directly.  The most flexible way to accomplish this is to use
+AWS Route 53 which supports alias records that map a domain name to an elastic load balancer.  The example below shows
+how one can map a few different records types to an AWS Route 53 zone name 'example.com':
+
+  stage :hello do
+    solution_stack "32bit Amazon Linux running Tomcat 7"
+
+    zone 'example.com'
+      elb_alias :apex # Create an alias entry to the load balancer at the zone apex 'myapp.com.'
+      elb_alias 'www' # Create an alias entry to the load balancer at 'www.myapp.com.'
+      elb_cname 'www2' # Create a CNAME to the load balancer rather than an alias record.
+      cname 'www3' # Create a CNAME to the elastic beanstalk CNAME (useful when using swap cname feature)
+    end
+
+  end
+
+Each stage declaration can have multiple zones and each zone can declare multiple records to create/update when a stage
+is launched.  The +elb_alias+ directive provides a domain name that should be mapped, you can specify +:apex+ if you
+would like to map an alias to the zone apex, in this case 'example.com'.  The +elb_cname+ creates a CNAME record to
+the load balancer's DNS name, while the +cname+ record creates a CNAME record pointing to the elastic beanstalk
+environment's cname.
+
+To run this configuration create a zone named 'example.com' using the AWS Managmenent Console and run the following
+command:
+
+  fum hello_r53.fum launch hello
+
+When you run the command, you will notice a few differences in the output from before.  First, the newly created
+environment is
+
+As an alternative to using AWS Route 53, you can use elastic beanstalk's cname prefix and swapping features to manage
+your environments. This is configured as follows:
+
+  stage :hello do
+      solution_stack "32bit Amazon Linux running Tomcat 7"
+
+      cname_prefix "example", :swap => true
+    end
+
+The +cname_prefix+ declaration tells fum what prefix to request for the beanstalk environment when it is launched.
+By default, fum does not specify a prefix, and lets AWS assign a name dynamically.  If you specify a cname prefix,
+then you must ensure that the name is unique across all AWS customers.  You can also specify an option to +cname_prefix+
+to turn on cname swapping.  By specifying +:swap => true+ as an option, a newly launched environment will always try
+to take over the CNAME from any currently running environments.
+
+Let's try it (Note, if you want to run this sample, you will most likely need to pick a cname prefix other than
+"example" as it likely not available.):
+
+  fum hello_cname.fum launch hello
+
+Login to the AWS Management Console and observe your environment is launched correctly and has the correct CNAME, take
+note of the environment name created, and then launch another:
+
+  fum hello_cname.fum launch hello
+
+Afer the command is complete, login to the AWS Management Console and observe the newly created environemnt now
+is using the specified CNAME, while the previously created environment is using a dynamically assigned CNAME.
+
+
+== Multiple environments per stage
+
+Stages typically have only one elastic beanstalk environment active at any given time. However, fum uses multiple
+environments per stage combined with DNS to mask lifecycle changes from the end users of the application.  When
+deploying a new version of your application, or updaing an environment configuration, fum manages the environments
+and DNS records to provide a seamless rollout for your users.
+
+  stage :multi
+    solution_stack "32bit Amazon Linux running Tomcat 7"
+    name timestamp_name('multi')
+    matcher timestamp_name_matcher('multi')
+    description "Environment multi launched on #{Time.now}."
+
+  end
+
+The name directive tells fum what name to give an environment upon launch.  You can provide a string as an argument
+to the +name+ directive, but then fum will only be able to launch.
+
+Launch two instances:
+
+  fum multi.fum launch multi
+
+And the launch another:
+
+  fum multi.fum launch multi
+
+You can login to the AWS Managment Console to view them, but you can also use the fum list command as follow:
+
+  fum multi.fum status multi
+
+You will notice that the status command displays the name of each environment, followed by
+
+  fum multi.fm terminate --all multi
+
+This will terminate all environments that match the
+
+== Configuration templates
+
+  stage :production
+    template "production-config"
+  end
+
+  stage :latest
+    template "latest-config"
+  end
+
+== Version promotion
+
+Up to this point, we haven't talked about how fum handles application versions.  You can specify what version a
+particular stage uses using the +version+ directive as follows:
+
+  stage :last_release
+    version "last-release-label"
+  end
+
+If you run:
+
+  fum launch last_release
+
+It will launch an environment.
+In a typical application environment, you will
+
+  # An environment that whose version is automatically updated via a build server.
+  stage :build do
+    template 'build-config'
+
+    zone 'example.com'
+      elb_alas 'build' # build.myapp.com will point to this environment.
+    end
+  end
+
+  stage :staging do
+    template 'staging-config'
+
+    version :from_stage => :build
+
+    zone 'example.com'
+      elb_alias 'staging'
+    end
+  end
+
+  stage :production do
+    template 'produciton-config'
+
+    version :from_stage => :staging
+
+    zone 'example.com'
+      elb_alias :apex
+      elb_alias 'www'
+    end
+  end
+
+Let's launch it:
+
+
+In this example, the "build" stage is
+
+== Utility commands
+
+Fum also provides a number of utility commands to aid in manging elastic beanstalk.
+
+The *list* command allows you to list various beanstalk components.  For example:
+
+  fum list stacks # List all solutions stacks
+  fum list env # Lists all environments
+
+The *tail* command allows you to tail the event log
+
+  fum tail
+
+The *template* command allows for manipulating configuration templates
+
+== Why is the tool called "fum"?
+
+Because fum is the {final word}[http://en.wikipedia.org/wiki/Fee-fi-fo-fum] in managing your
+{AWS Elastic Beanstalk}[http://aws.amazon.com/elasticbeanstalk/] infrastructure.
