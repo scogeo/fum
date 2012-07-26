@@ -45,7 +45,7 @@ module Fum
             template.modify(new_attributes)
             puts "Updated template #{template.name}"
           rescue Fog::AWS::ElasticBeanstalk::InvalidParameterError => ex
-            die ex
+            die "Exception during update #{ex}"
           end
 
         end

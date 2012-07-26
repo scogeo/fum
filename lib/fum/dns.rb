@@ -27,10 +27,11 @@ module Fum
     def update_zone(zone_decl, hosted_zone_name_id, dns_name, env_cname, options)
       dns = Fog::DNS[:aws]
 
-      zone = dns.zones.all({:domain => zone_decl.name}).shift
+      zone = dns.zones.all.select {|z| z.domain == ensure_trailing_dot(zone_decl.name)}.shift
       die "Could not find zone #{zone_decl.name} in account." unless zone
 
       puts "Updating records in zone #{zone.domain}"
+
       create_list = []
       modify_list = []
 

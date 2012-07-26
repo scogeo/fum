@@ -14,7 +14,8 @@ module Fum
 
       def execute(options, args)
         beanstalk = Fog::AWS[:beanstalk]
-        case args.shift
+        object = args.shift
+        case object
           when "stacks"
             beanstalk.solution_stacks.each { |stack|
               puts stack["SolutionStackName"]
@@ -39,8 +40,10 @@ module Fum
             beanstalk.versions.each { |version|
               puts version.label
             }
+          when "help", nil
+            puts help
           else
-            die "Unknown object to list ''#{object}''."
+            die "Unknown object to list '#{object}'."
         end
       end
 
