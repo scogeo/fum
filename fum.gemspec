@@ -20,7 +20,8 @@ Gem::Specification.new do |s|
 
   # specify any dependencies here; for example:
   # s.add_development_dependency "rspec"
-  s.add_runtime_dependency "fog", "~>1.4.0"
-  s.add_runtime_dependency "json", "~>1.6.5"
+  s.add_runtime_dependency "fog", "~>1.11.1"
+  s.add_runtime_dependency "multi_json", "~> 1.7.3"
+  s.add_runtime_dependency "json", "~>1.7.7"
 
 end

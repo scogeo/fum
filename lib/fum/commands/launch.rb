@@ -76,6 +76,10 @@ module Fum
 
         puts "New environment is ready."
 
+        puts "Waiting for application to start..."
+
+        sleep 120
+
         puts "Waiting for environment health status..."
 
         # Wait for health to change from Grey to a known state

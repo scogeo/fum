@@ -47,8 +47,8 @@ module Fum
           end
         }
       end
-
     end
+
     #
     # Build Map
     #
@@ -89,13 +89,12 @@ module Fum
     end
 
     def analyze_zone_map(environments, options)
-
       puts "Analyzing environments." if options[:verbose]
 
       environments.each { |e|
         @env_map[e.id] = {
             :env => e,
-            :elb => e.load_balancer,
+            :elb => e.ready? ? e.load_balancer : nil,
             :record_count => 0,
             :dns_records => [],
             :missing_dns_names => [],
@@ -154,6 +153,7 @@ module Fum
 
     def environment_for_alias(record)
       return nil unless record.alias_target
+
       @env_map.each_value { |e|
         next unless e[:env].ready? # Skip if environment not ready.
         if e[:elb] && dns_names_equal(e[:elb].dns_name, record.alias_target['DNSName']) &&

@@ -133,7 +133,8 @@ module Fum
 
     # Returns true if the specified dns names equal, ignoring any trailing "."
     def dns_names_equal(a, b)
-      ensure_trailing_dot(a) == ensure_trailing_dot(b)
+      # ignore case and ensure trailing date for comparison
+      ensure_trailing_dot(a).casecmp(ensure_trailing_dot(b))
     end
 
   end
