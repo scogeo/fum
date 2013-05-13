@@ -26,7 +26,7 @@ module Fum
         stage_name = stage_name_from_args(args)
         stage_decl = stage(stage_name)
 
-        if options[:verbose]
+        if Fum.verbose
           puts "Verifying application '#{application_name}' exists in AWS."
         end
 
@@ -55,15 +55,16 @@ module Fum
         env_opt[:solution_stack_name] = stage_decl.solution_stack_name unless stage_decl.solution_stack_name.nil?
         env_opt[:description] = stage_decl.env_description unless stage_decl.env_description.nil?
 
+        set_option_settings(stage_decl, env_opt, options)
         set_version(stage_decl, env_opt, options)
         swap_env = set_cname(stage_decl, env_opt, options)
 
-        if options[:verbose] || options[:noop]
+        if Fum.verbose || Fum.noop
           puts "Launching an environment named '#{stage_decl.environment_name}'"
         end
 
         begin
-          new_env = beanstalk.environments.create(env_opt) unless options[:noop]
+          new_env = beanstalk.environments.create(env_opt) unless Fum.noop
         rescue Exception => e
           die "Problem creating environment: #{e.to_s}"
         end
@@ -72,19 +73,21 @@ module Fum
 
         puts "Waiting for environment to become ready..."
 
-        new_env.wait_for { ready? } unless options[:noop]
+        new_env.wait_for { ready? } unless Fum.noop
 
         puts "New environment is ready."
 
+        return if Fum.noop
+
         puts "Waiting for application to start..."
 
-        sleep 120
+        sleep 120 unless Fum.noop
 
         puts "Waiting for environment health status..."
 
         # Wait for health to change from Grey to a known state
-        new_env.wait_for { health != 'Grey' } unless options[:noop]
-        if (new_env.health == "Green" || options[:noop])
+        new_env.wait_for { health != 'Grey' } unless Fum.noop
+        if (Fum.noop || new_env.health == "Green")
           puts "New environment is healthy and available at #{new_env.cname}."
           update_zones(stage_decl, new_env, options) unless options[:no_dns]
         else
@@ -96,6 +99,35 @@ module Fum
           puts "Swapping environment CNAMES with #{swap_env.name}"
           new_env.swap_cnames(swap_env)
         end
+      end
+
+      def set_option_settings(stage_decl, env_opt, options)
+        merged_settings = application_settings
+
+        stage_decl.stage_settings.each do |key, value|
+          puts "#{key} is #{value}"
+          namespaceValues = merged_settings[key]
+          if namespaceValues.nil?
+            namespaceValues = {}
+            merged_settings["key"] = namespaceValues
+          end
+          namespaceValues.merge!(value)
+        end
+
+        # Flatten settings into an array
+        flattened_settings = []
+        merged_settings.each do |namespace, hashedValues|
+          hashedValues.each do |option, value|
+            flattened_settings << {
+                "Namespace" => namespace,
+                "OptionName" => option,
+                "Value" => value
+            }
+          end
+        end
+
+        env_opt[:option_settings] = flattened_settings
+
       end
 
       def set_version(stage_decl, env_opt, options)

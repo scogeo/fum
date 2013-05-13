@@ -5,7 +5,11 @@ module Fum
 
       require 'fum/lang/stage'
 
-      attr_accessor :name
+      attr_accessor :name, :global_settings
+
+      def initialize
+        @global_settings = {}
+      end
 
       def self.load(filename)
         file = self.new
@@ -15,6 +19,10 @@ module Fum
 
       def application_name(name)
         @name = name
+      end
+
+      def settings(value)
+        @global_settings = value
       end
 
       def stages

@@ -5,13 +5,14 @@ module Fum
       require 'fum/lang/zone'
 
       attr_accessor :zones, :environment_name, :id, :cname, :swap_cnames, :template_name, :solution_stack_name, :version_label
-      attr_accessor :env_description
+      attr_accessor :env_description, :stage_settings
 
       def initialize(id, &block)
         @zones = []
         @environment_name = id.to_s
         @id = id.to_s
         @swap_cnames = false
+        @stage_settings = {}
 
         if block_given?
           if block.arity == 1
@@ -58,6 +59,19 @@ module Fum
 
       def solution_stack(name, &block)
         @solution_stack_name = name
+      end
+
+      def stack(arg)
+        # Work in progress, create stack name using hash rather than string name.
+        defaults = {
+            :arch => "x64",
+            :os => "Linux"
+        }
+
+      end
+
+      def settings(value)
+        @stage_settings = value
       end
 
       def cname_prefix(name, opts = {})

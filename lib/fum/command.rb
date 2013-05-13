@@ -44,6 +44,10 @@ module Fum
       @command_manager.definitions.nil? ? nil : @command_manager.definitions.name
     end
 
+    def application_settings
+      @command_manager.definitions.nil? ? nil : @command_manager.definitions.global_settings
+    end
+
     # Return the stage declaration given app and name.
     def stage(name)
       die "No definition file loaded, please provide a stage definition file." if @command_manager.definitions.nil?
