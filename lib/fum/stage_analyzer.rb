@@ -54,11 +54,12 @@ module Fum
     #
     def build_zone_map(zone_decls, options)
       zone_decls.each { |zone_decl|
-        puts "Looking up zone #{zone_decl.name}." if options[:verbose]
-        zone = dns.zones.all({:domain => zone_decl.name}).shift
+        puts "Looking up zone #{zone_decl.name}." if Fum.verbose
+        zones = dns.zones.all
+        zone = zones.select { |z| z.domain == ensure_trailing_dot(zone_decl.name)}.shift
         Fum::die "Could not find zone #{zone_decl.name} in account." unless zone
 
-        puts "Obtaining all records for zone #{zone_decl.name}" if options[:verbose]
+        puts "Obtaining all records for zone #{zone_decl.name}" if Fum.verbose
         all_records = zone.records.all!
 
         zone_decl.records.each { |record_decl|
@@ -89,7 +90,7 @@ module Fum
     end
 
     def analyze_zone_map(environments, options)
-      puts "Analyzing environments." if options[:verbose]
+      puts "Analyzing environments." if Fum.verbose
 
       environments.each { |e|
         @env_map[e.id] = {

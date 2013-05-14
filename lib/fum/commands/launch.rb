@@ -105,7 +105,6 @@ module Fum
         merged_settings = application_settings
 
         stage_decl.stage_settings.each do |key, value|
-          puts "#{key} is #{value}"
           namespaceValues = merged_settings[key]
           if namespaceValues.nil?
             namespaceValues = {}
