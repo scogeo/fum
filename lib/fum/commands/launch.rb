@@ -109,7 +109,7 @@ module Fum
           namespaceValues = merged_settings[key]
           if namespaceValues.nil?
             namespaceValues = {}
-            merged_settings["key"] = namespaceValues
+            merged_settings[key] = namespaceValues
           end
           namespaceValues.merge!(value)
         end
