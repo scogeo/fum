@@ -39,7 +39,7 @@ module Fum
           targets.each { |target|
             if target.ready?
               puts "Terminating inactive environment #{target.name}."
-              target.destroy
+              target.destroy unless Fum.noop
             end
 
           }
